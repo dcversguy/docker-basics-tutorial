@@ -1,0 +1,74 @@
+services:
+  # ── Web application ──────────────────────────────────────────
+  web:
+    build: ./web
+    ports:
+      - "3000:3000"
+    environment:
+      # Tell the app where to find the database
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: appdb
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      NODE_ENV: production
+    # Wait for the database to be healthy before starting the web app
+    depends_on:
+      db:
+        condition: service_healthy
+    # Connect to both networks so the web app can reach the db
+    # and also be accessible from the host via the default network
+    networks:
+      - frontend
+      - backend
+    # Restart the container automatically if it crashes
+    restart: unless-stopped
+
+  # ── PostgreSQL database ──────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: appdb
+    # Persist database data to a named volume
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      # Run init scripts on first start
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - backend
+    # Health check: ensure Postgres is accepting connections
+    # before dependent services start
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d appdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  # ── Adminer (database GUI) ────────────────────────────────────
+  adminer:
+    image: adminer:4
+    ports:
+      - "8080:8080"
+    networks:
+      - backend
+    depends_on:
+      - db
+    restart: unless-stopped
+
+# ── Named volumes ────────────────────────────────────────────────
+volumes:
+  db-data:
+    driver: local
+
+# ── Networks ─────────────────────────────────────────────────────
+networks:
+  # Frontend network: web app <-> host
+  frontend:
+    driver: bridge
+  # Backend network: web app <-> database (not exposed to host)
+  backend:
+    driver: bridge

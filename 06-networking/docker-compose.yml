@@ -1,0 +1,54 @@
+services:
+  # ── App A: Sender ────────────────────────────────────────────
+  # Sends HTTP requests to App B using the service name as the hostname
+  sender:
+    build:
+      context: .
+      args:
+        APP_NAME: sender
+        TARGET_HOST: receiver
+        TARGET_PORT: "4000"
+    ports:
+      - "3001:3001"
+    environment:
+      APP_NAME: sender
+      LISTEN_PORT: "3001"
+      TARGET_HOST: receiver
+      TARGET_PORT: "4000"
+    networks:
+      - app-network
+    depends_on:
+      - receiver
+
+  # ── App B: Receiver ───────────────────────────────────────────
+  # Listens for incoming requests from the sender
+  receiver:
+    build:
+      context: .
+      args:
+        APP_NAME: receiver
+    ports:
+      - "4000:4000"
+    environment:
+      APP_NAME: receiver
+      LISTEN_PORT: "4000"
+    networks:
+      - app-network
+
+  # ── Isolated service ──────────────────────────────────────────
+  # This service is on a DIFFERENT network and CANNOT reach sender/receiver
+  isolated:
+    image: alpine:3.19
+    command: sh -c "echo 'I am isolated' && sleep infinity"
+    networks:
+      - isolated-network
+
+# ── Networks ────────────────────────────────────────────────────
+networks:
+  # Main application network — sender and receiver can communicate
+  app-network:
+    driver: bridge
+
+  # Isolated network — completely separate from app-network
+  isolated-network:
+    driver: bridge

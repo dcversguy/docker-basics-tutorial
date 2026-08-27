@@ -1,0 +1,12 @@
+{
+  "name": "docker-notes-app",
+  "version": "1.0.0",
+  "description": "Notes app demonstrating Docker volumes",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
